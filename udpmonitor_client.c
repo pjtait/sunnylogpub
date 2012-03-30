@@ -31,7 +31,6 @@ void send_udpmonitor(const char *fac, const char *msg)
     static int servaddrlen;
     static int inited = 0;
     static int sock;
-    int res;
 #ifndef __cplusplus
     char msgbuff[1024];
     int msglen;
@@ -71,6 +70,7 @@ static int init_socket(struct sockaddr **servaddrp, int *servaddrlenp)
     char *addr_str;
     int res;
     int sock;
+    const int on = 1;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
@@ -111,6 +111,17 @@ static int init_socket(struct sockaddr **servaddrp, int *servaddrlenp)
     memcpy(*servaddrp, addr->ai_addr, addr->ai_addrlen);
     *servaddrlenp = addr->ai_addrlen;
     freeaddrinfo(addrsave);
+    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST|SO_REUSEADDR,
+                     &on, sizeof on))
+    {
+#ifdef __cplusplus
+        cout << "init_socket: setsockopt failed" << endl;
+        cout.flush();
+#else
+        fprintf(stderr, "init_socket: setsockopt failed\n");
+#endif
+        return -1;
+    } 
     return sock;
 }
 
