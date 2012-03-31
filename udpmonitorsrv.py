@@ -98,8 +98,15 @@ s = socket. socket(socket. AF_INET, socket. SOCK_DGRAM)
 s. bind(("", port) )
 print "waiting on port: ", port
 powerTot = PowerTotal()
+lastReadTime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+minute = datetime.timedelta(minutes=1)
 while True:
     # Receive up to 1024 bytes in a datagram
     data, addr = s. recvfrom(1024)
-    if len(data) > 0:
+    if len(data) <= 0:
+        continue
+    now = datetime.datetime.now()
+    if (now - lastReadTime) > minute:
+        lastReadTime = now
         proc_data(data)
+    
