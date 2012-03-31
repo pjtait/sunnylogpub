@@ -39,9 +39,9 @@ def post_status(date, time, energy, power):
     host = url[0]
     service = '/' + '/'.join(url[1:])
     params = urllib.urlencode({ 'd' : date,
-                                't' : time,
-                                'v1' : energy,
-                                'v2' : power})
+                                'pt' : time,
+                                'g' : energy,
+                                'pp' : power})
     headers = {"Content-type": "application/x-www-form-urlencoded",
                "Accept": "text/plain",
                "X-Pvoutput-SystemId" : opts.systemid,
@@ -79,7 +79,7 @@ parser = OptionParser()
 parser.add_option("", "--apikey", help="pvoutput API key", default=None)
 parser.add_option("", "--systemid", help="pvoutput system ID (an integer)", default=None)
 parser.add_option("", "--url", help="PV output status URL",
-                  default="http://pvoutput.org/service/r1/addstatus.jsp")
+                  default="http://pvoutput.org/service/r2/addoutput.jsp")
 parser.add_option("", "--verbose", help="be more verbose", action='store_true',
                   default=False)
 parser.add_option("", "--dryrun", help="don't send to pvoutput", action='store_true',

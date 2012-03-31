@@ -21,6 +21,7 @@ extern SHARED_FUNCTION void yasdiSetDriverOffline(DWORD);
 static int exit_commanded = 0;
 static int daemonised = 0;
 static FILE *logfh;
+static char todaysDate[40];
 
 static void fatal(char *fmt, ...)
 {
@@ -122,6 +123,7 @@ static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
     char namebuff[100];
     char databuff[1024];
     char *dbp = databuff;
+    char *timestamp;
     int i;
     int res;
     double value;
@@ -129,7 +131,13 @@ static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
     for (;;)
     {
         dp = databuff;
-        appendbuff(&dbp, sizeof databuff, &dp, "%s,", mktimestamp());
+        timestamp = mktimestamp();
+        if (strncmp(todaysDate, timestamp, 6) != 0)
+        {
+            syslog(LOG_INFO, "End of day, exiting");
+            return;
+        }
+        appendbuff(&dbp, sizeof databuff, &dp, "%s,", timestamp);
         for (i=0; i < handlecount; ++i)
         {
             if (exit_commanded)
@@ -137,12 +145,14 @@ static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
             if ((res = GetChannelValue(ChannelHandles[i], DeviceHandle, 
                   &value, namebuff, sizeof namebuff, 0)) < 0)
             {
-                fprintf(stderr, "Channel %d returned %d\n", i, res);
+                syslog(LOG_INFO, "Channel %d returned %d", i, res);
                 break;
             }
             appendbuff(&dbp, sizeof databuff, &dp, "%g,%s,", value, namebuff);
         }
         appendbuff(&dbp, sizeof databuff, &dp, "\n");
+        if (strlen(databuff) < 30)
+            continue; //No data received
         fputs(databuff, logfh);
         fflush(logfh);
         send_udpmonitor("SunnyPV", databuff);
@@ -172,8 +182,8 @@ int main(int argc, char **argv)
         daemonise();
     tnow = time(0);
     now = localtime(&tnow);
-    strftime(namebuff, sizeof namebuff, "%Y%m%d", now);
-    snprintf(databuff, sizeof databuff, "%s-%s", argv[1], namebuff);
+    strftime(todaysDate, sizeof todaysDate, "%Y%m%d", now);
+    snprintf(databuff, sizeof databuff, "%s-%s", argv[1], todaysDate);
     if ((logfh = fopen(databuff, "a")) == NULL)
         fatal("Could not append to '%s'", databuff);
     #define INI_FILE "/etc/yasdi.ini"
