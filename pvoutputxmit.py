@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# post updated status of a PV system to pvoutput.org for a SMA webbox
+# post updated status of a PV system to pvoutput.org for a SMA RS-485 interface
 # data is received from UDP broadcasts from the 'sunnylogpub' server
 # parts Copyright Andrew Tridgell 2010
 # Copyright Philip Tait 2012
