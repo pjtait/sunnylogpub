@@ -148,7 +148,10 @@ static void publish(char *data)
     snprintf(cmd, sizeof cmd, "%s %s", publisher, data);
     mypid = fork();
     if (0 == mypid)
-        system(cmd); 
+    {
+        system(cmd);
+        exit(EXIT_SUCCESS);
+    }
 }
 
 static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
@@ -211,12 +214,14 @@ int main(int argc, char **argv)
     int handlecount;
     DWORD ChannelHandles[100];
     char namebuff[100];
+    char argv0[1024];
     char databuff[1024];
     char *dp;
 
     if (argc < 2)
         fatal("No logfile specified");
-    snprintf(publisher, sizeof publisher, "%s/publish.sh", dirname(argv[0]));
+    strncpy(argv0, argv[0], sizeof argv0);
+    snprintf(publisher, sizeof publisher, "%s/publish.sh", dirname(argv0));
     if (strstr(argv[0], "sunnylogpubd"))
         daemonise();
     tnow = time(0);
