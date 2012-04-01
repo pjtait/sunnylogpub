@@ -11,6 +11,7 @@
 #include <time.h>
 #include <signal.h>
 #include <syslog.h>
+#include <errno.h>
 
 #include "libyasdimaster.h"
 #include "udpmonitor_client.h"
@@ -21,6 +22,7 @@ extern SHARED_FUNCTION void yasdiSetDriverOffline(DWORD);
 static int exit_commanded = 0;
 static int daemonised = 0;
 static FILE *logfh;
+static int eTotalIndex = -1;
 static char todaysDate[40];
 
 static void fatal(char *fmt, ...)
@@ -88,7 +90,7 @@ static void daemonise(void)
         close(i); /* close all descriptors */
     i = open("/dev/null", O_RDWR);
     dup(i); dup(i); /* handle standard I/O */
-    umask(027); /* set newly created file permissions */
+    umask(022); /* set newly created file permissions */
     chdir("/home/SunnyData"); /* change running directory */
     lfp = open("/var/run/sunnylog.pid", O_RDWR|O_CREAT, 0640);
     if (lfp < 0)
@@ -115,6 +117,22 @@ static void appendbuff(char *buff[], size_t buffsiz,  char **bufp, char *fmt, ..
     written = vsnprintf(*bufp, buffsiz - (*bufp - *buff), fmt, ap);
     va_end(ap);
     *bufp += written;
+}
+
+/* Maintain a file with the energy total */
+static void updateDailyTotalFile(float value, char *timestamp)
+{
+    FILE *fh;
+    char namebuff[80];
+    
+    snprintf(namebuff, sizeof namebuff, "dailyenergy-%s", timestamp);
+    if ((fh = fopen(namebuff, "w")) == NULL)
+    {
+        syslog(LOG_WARNING, "Cannot update daily total, '%s'", strerror(errno));
+        return;
+    }
+    fprintf(fh, "%g\n", value);
+    fclose(fh);
 }
 
 static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
@@ -148,6 +166,8 @@ static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
                 syslog(LOG_INFO, "Channel %d returned %d", i, res);
                 break;
             }
+            if (i == eTotalIndex)
+                updateDailyTotalFile(value, timestamp);
             appendbuff(&dbp, sizeof databuff, &dp, "%g,%s,", value, namebuff);
         }
         appendbuff(&dbp, sizeof databuff, &dp, "\n");
@@ -229,6 +249,8 @@ int main(int argc, char **argv)
                 syslog(LOG_WARNING, "Bad channel %d\n", ChannelHandles[i]);
             else
                 fprintf(logfh, "%s,", namebuff);
+            if (strcmp(namebuff, "E-Total") == 0)
+                eTotalIndex = i;
         }
         fprintf(logfh, "\n");
     }
