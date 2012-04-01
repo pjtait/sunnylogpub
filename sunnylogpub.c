@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <libgen.h>
 #include <time.h>
 #include <signal.h>
 #include <syslog.h>
@@ -21,6 +22,7 @@ extern SHARED_FUNCTION void yasdiSetDriverOffline(DWORD);
 
 static int exit_commanded = 0;
 static int daemonised = 0;
+static char publisher[512];
 static FILE *logfh;
 static int eTotalIndex = -1;
 static char todaysDate[40];
@@ -135,6 +137,20 @@ static void updateDailyTotalFile(float value, char *timestamp)
     fclose(fh);
 }
 
+static void publish(char *data)
+{
+    struct stat statbuf;
+    pid_t mypid;
+    char cmd[2048];
+    
+    if (stat(publisher, &statbuf) != 0)
+        return;
+    snprintf(cmd, sizeof cmd, "%s %s", publisher, data);
+    mypid = fork();
+    if (0 == mypid)
+        system(cmd); 
+}
+
 static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
 {
     char *dp;
@@ -176,6 +192,7 @@ static void acq_loop(int handlecount, DWORD DeviceHandle, DWORD *ChannelHandles)
         fputs(databuff, logfh);
         fflush(logfh);
         send_udpmonitor("SunnyPV", databuff);
+        publish(databuff);
         sleep(30);
     }
 }
@@ -199,6 +216,7 @@ int main(int argc, char **argv)
 
     if (argc < 2)
         fatal("No logfile specified");
+    snprintf(publisher, sizeof publisher, "%s/publish.sh", dirname(argv[0]));
     if (strstr(argv[0], "sunnylogpubd"))
         daemonise();
     tnow = time(0);
