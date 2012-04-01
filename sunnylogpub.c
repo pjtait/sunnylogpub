@@ -125,7 +125,7 @@ static void updateDailyTotalFile(float value, char *timestamp)
     FILE *fh;
     char namebuff[80];
     
-    snprintf(namebuff, sizeof namebuff, "dailyenergy-%s", timestamp);
+    snprintf(namebuff, sizeof namebuff, "dailyenergy-%.8s", timestamp);
     if ((fh = fopen(namebuff, "w")) == NULL)
     {
         syslog(LOG_WARNING, "Cannot update daily total, '%s'", strerror(errno));
@@ -195,6 +195,7 @@ int main(int argc, char **argv)
     DWORD ChannelHandles[100];
     char namebuff[100];
     char databuff[1024];
+    char *dp;
 
     if (argc < 2)
         fatal("No logfile specified");
@@ -240,20 +241,20 @@ int main(int argc, char **argv)
         fatal("Device handle not found");
     handlecount = GetChannelHandlesEx(
         DeviceHandle[0], ChannelHandles, sizeof ChannelHandles, ALLCHANNELS);
-    if (ftell(logfh) == 0)
+    databuff[0] = '\0';
+    dp = databuff;
+    for (i=0; i < handlecount; ++i)
     {
-        for (i=0; i < handlecount; ++i)
-        {
-            if (GetChannelName(ChannelHandles[i], namebuff, sizeof namebuff) 
-                    != 0)
-                syslog(LOG_WARNING, "Bad channel %d\n", ChannelHandles[i]);
-            else
-                fprintf(logfh, "%s,", namebuff);
-            if (strcmp(namebuff, "E-Total") == 0)
-                eTotalIndex = i;
-        }
-        fprintf(logfh, "\n");
+        if (GetChannelName(ChannelHandles[i], namebuff, sizeof namebuff) 
+                != 0)
+            syslog(LOG_WARNING, "Bad channel %d\n", ChannelHandles[i]);
+        else
+            dp += snprintf(dp, sizeof databuff-(dp-databuff), "%s,",                                        namebuff);
+        if (strcmp(namebuff, "E-Total") == 0)
+            eTotalIndex = i;
     }
+    if (ftell(logfh) == 0)
+        fprintf(logfh, "%s\n", databuff); // Put header at start of file
     syslog(LOG_INFO, "Starting monitoring");
     acq_loop(handlecount, DeviceHandle[0], ChannelHandles);
     fclose(logfh);
