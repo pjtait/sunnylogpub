@@ -23,6 +23,8 @@ def getTotal():
     return float(lastdata) * 1000.0
 
 def post_status(date, time, energy, power):
+    if opts.verbose:
+        print "post_status"
     dataDict = { 'd' : date, 't' : time, 'v1' : energy, 'v2' : power}
     urlApp = 'addstatus.jsp'
     post_update(dataDict, urlApp)
@@ -76,14 +78,14 @@ def check_send_interval():
     except OSError, e:
         if e.errno == 2:
             too_soon = False
+    if too_soon:
+        return False
     with file(stampfile, 'w'):
         os.utime(stampfile, None)
-    return not too_soon
+    return True
     
 #proc_data("20120329094917,2.00195e+09,,228,,10,,2,,2.73,,2.73,,2,Mpp-Operation,340,,3.028,,240.6,,59.99,,728,,37.9,,2.242,,483.986,,636.388,,655.995,,463,,2.00195e+09,,822.776,,7,Mpp,3,240V,0,-----,0,-------,")
 #sys.exit()
-if not check_send_interval():
-    sys.exit()
 parser = OptionParser()
 parser.add_option("", "--apikey", help="pvoutput API key")
 parser.add_option("", "--systemid", help="pvoutput system ID (an integer)")
@@ -100,12 +102,20 @@ if opts.systemid is None:
 if opts.apikey is None:
     print("You must provide an API key")
     sys.exit(1)
+if not check_send_interval():
+    if opts.verbose:
+        print "Too soon!"
+    sys.exit()
 logdir = args[0]
 data = args[1]
 if len(data) <= 0:
+    if opts.verbose:
+        print "No data"
     sys.exit()
 params = proc_data(data)
 if not params:
+    if opts.verbose:
+        print "No data 2"
     sys.exit()
 post_status(*params)
     
